@@ -69,6 +69,7 @@ dependencies:
   video_compress: ^3.1.4
   flutter_riverpod: ^3.3.1
   uuid: ^4.0.0
+  flutter_native_splash: ^2.4.6
 
   network_service:
     path: ./network_service

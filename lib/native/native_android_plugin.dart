@@ -1,12 +1,12 @@
+import 'dart:async';
 import 'dart:io';
 
+import 'package:bookish/native/hybrid_composition_view.dart';
+import 'package:bookish/native/native_image_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-
-import '../native/hybrid_composition_view.dart';
 
 class NativeAndroidPlugin extends StatefulWidget {
-  static String routeName = "/native-android-plugin";
+  static String routeName = '/native-android-plugin';
 
   const NativeAndroidPlugin({super.key});
 
@@ -15,49 +15,32 @@ class NativeAndroidPlugin extends StatefulWidget {
 }
 
 class _NativeAndroidPluginState extends State<NativeAndroidPlugin> {
-  static const MethodChannel _nativeImageChannel =
-      MethodChannel('com.newaura.bookish/native_image');
-
   String? _imagePath;
+  StreamSubscription<String>? _imageSubscription;
 
   @override
   void initState() {
     super.initState();
-    _nativeImageChannel.setMethodCallHandler(_onNativeImageMethodCall);
+    _imageSubscription = NativeImagePicker.instance.images.listen((path) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _imagePath = path;
+      });
+    });
   }
 
   @override
   void dispose() {
-    _nativeImageChannel.setMethodCallHandler(null);
+    _imageSubscription?.cancel();
     super.dispose();
-  }
-
-  Future<void> _onNativeImageMethodCall(MethodCall call) async {
-    if (call.method != 'onImagePicked') {
-      return;
-    }
-    final Object? arguments = call.arguments;
-    if (arguments is! Map) {
-      return;
-    }
-    final Object? path = arguments['path'];
-    if (path is! String || path.isEmpty) {
-      return;
-    }
-    if (!mounted) {
-      return;
-    }
-    setState(() {
-      _imagePath = path;
-    });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Native Android Plugin'),
-      ),
+      appBar: AppBar(title: const Text('Native Android Plugin')),
       body: Column(
         children: [
           const Expanded(
@@ -72,10 +55,7 @@ class _NativeAndroidPluginState extends State<NativeAndroidPlugin> {
                 ? const Center(
                     child: Text('Pick an image from the native buttons above'),
                   )
-                : Image.file(
-                    File(_imagePath!),
-                    fit: BoxFit.contain,
-                  ),
+                : Image.file(File(_imagePath!), fit: BoxFit.contain),
           ),
         ],
       ),

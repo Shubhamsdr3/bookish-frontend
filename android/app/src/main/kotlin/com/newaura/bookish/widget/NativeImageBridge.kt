@@ -9,6 +9,8 @@ import io.flutter.plugin.common.MethodChannel
  * Bridges native gallery/camera picks to Flutter over a [MethodChannel].
  * [com.newaura.bookish.MainActivity] starts [com.newaura.bookish.media.NativeImagePickerActivity]
  * and forwards the returned file path here.
+ *
+ * Dart may call `openGallery` / `openCamera`; native emits `onImagePicked`.
  */
 object NativeImageBridge {
 
@@ -20,10 +22,25 @@ object NativeImageBridge {
     private var openCameraAction: (() -> Unit)? = null
 
     fun attachChannel(messenger: BinaryMessenger) {
-        channel = MethodChannel(messenger, CHANNEL)
+        channel = MethodChannel(messenger, CHANNEL).apply {
+            setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "openGallery" -> {
+                        openGallery()
+                        result.success(null)
+                    }
+                    "openCamera" -> {
+                        openCamera()
+                        result.success(null)
+                    }
+                    else -> result.notImplemented()
+                }
+            }
+        }
     }
 
     fun detachChannel() {
+        channel?.setMethodCallHandler(null)
         channel = null
     }
 

@@ -8,6 +8,7 @@ void main() {
 
     expect(service.isInitialized, isFalse);
     expect(() => service.alice, throwsStateError);
+    expect(service.aliceNavigatorKey, isNull);
     expect(service.apiClient.options.baseUrl, isNotNull);
     expect(service.apiClient.options.baseUrl, Constants.BASE_URL);
   });

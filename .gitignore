@@ -3,7 +3,16 @@
 
 .pub/
 
+# IntelliJ / Android Studio (local only)
 .idea/
+*.iml
+*.ipr
+*.iws
+
+# Android Kotlin / NDK local caches
+**/.kotlin/
+**/.cxx/
+
 .vagrant/
 .sconsign.dblite
 .svn/
@@ -67,3 +76,7 @@ android/app/src/prod/google-services.json
 
 # Android machine-local SDK path
 android/local.properties
+
+# Local Firebase App Check debug token (register once in Console)
+.appcheck_debug_token
+pubspec.lock

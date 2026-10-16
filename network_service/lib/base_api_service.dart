@@ -5,7 +5,8 @@ import 'package:alice/model/alice_configuration.dart';
 import 'package:alice_dio/alice_dio_adapter.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/widgets.dart';
+import 'package:flutter/widgets.dart'
+    show GlobalKey, NavigatorState, VoidCallback, WidgetsFlutterBinding;
 import 'package:network_service/util/constants.dart';
 
 import 'curl_logging_dio_interceptor.dart';
@@ -35,10 +36,17 @@ class ApiService {
     return _apiClient!;
   }
 
+  bool get isAliceEnabled => kDebugMode;
+
   Alice get alice {
+    if (!kDebugMode) {
+      throw StateError('Alice is only available in debug mode.');
+    }
     if (_alice == null) {
       if (!_initialized) {
-        throw StateError('ApiService has not been initialized. Call initialize() first.');
+        throw StateError(
+          'ApiService has not been initialized. Call initialize() first.',
+        );
       }
       _aliceAdapter ??= AliceDioAdapter();
       _alice = Alice(
@@ -51,10 +59,15 @@ class ApiService {
     return _alice!;
   }
 
+  GlobalKey<NavigatorState>? get aliceNavigatorKey {
+    if (!kDebugMode || !_initialized) {
+      return null;
+    }
+    return alice.getNavigatorKey();
+  }
+
   Dio _createApiClient() {
     WidgetsFlutterBinding.ensureInitialized();
-    Constants.setEnvironment(kDebugMode ? Environment.DEV : Environment.PROD);
-
     return Dio(
       BaseOptions(
         followRedirects: false,
@@ -71,6 +84,8 @@ class ApiService {
   Future<void> initialize({VoidCallback? onSessionExpired}) async {
     this.onSessionExpired = onSessionExpired;
     _apiClient ??= _createApiClient();
+    // Honor environment set by the app (e.g. main.dart) before initialize().
+    apiClient.options.baseUrl = Constants.BASE_URL;
     _initialized = true;
 
     final client = _apiClient!;

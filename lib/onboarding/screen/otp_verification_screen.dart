@@ -55,21 +55,24 @@ class OtpVerificationScreen extends GetView<OtpVerificationController> {
                   height: 50.r,
                   width: 140.r,
                   child: Obx(() {
+                    final bool canSubmit = controller.canSubmitOtp &&
+                        !controller.isLoading.value;
                     return ElevatedButton.icon(
-                      onPressed: () {
-                        controller.isLoading.value
-                            ? null
-                            : controller.verifyOtp(controller.otpCode.value);
-                      },
-                      icon: controller.isLoading.value
+                      onPressed: canSubmit
+                          ? () =>
+                              controller.verifyOtp(controller.otpCode.value)
+                          : null,
+                      icon: controller.otpSubmitButtonState.value ==
+                              ButtonState.LOADING
                           ? _showLoader()
                           : Container(),
-                      label: const Text("Submit"),
+                      label: const Text('Submit'),
                       style: ButtonStyle(
                           foregroundColor:
                               WidgetStateProperty.all<Color>(Colors.white),
-                          backgroundColor:
-                              WidgetStateProperty.all<Color>(Colors.teal)),
+                          backgroundColor: WidgetStateProperty.all<Color>(
+                            canSubmit ? Colors.teal : Colors.teal.shade200,
+                          )),
                     );
                   })),
               SizedBox(
@@ -167,10 +170,16 @@ class OtpInputBox extends GetView<OtpVerificationController> {
               )),
           separatorBuilder: (index) => SizedBox(width: 12.r),
           onChanged: (value) {
-            if (value.isNotEmpty) {
+            controller.otpCode.value = value;
+            if (value.length == 6 && controller.hasVerificationId) {
               controller.verifyOtp(value);
             }
-            ;
+          },
+          onCompleted: (value) {
+            controller.otpCode.value = value;
+            if (value.length == 6 && controller.hasVerificationId) {
+              controller.verifyOtp(value);
+            }
           },
           focusedPinTheme: defaultTheme.copyWith(
               decoration: BoxDecoration(

@@ -32,7 +32,7 @@ class OtpVerificationController extends GetxController {
 
   Rxn<OtpVerificationState> otpVerificationState = Rxn();
 
-  RxString _verificationId = "".obs;
+  final RxString _verificationId = ''.obs;
 
   ValueNotifier<int>? timerSecValListener;
 
@@ -40,6 +40,13 @@ class OtpVerificationController extends GetxController {
 
   Rx<ButtonState> resendButtonState = Rx(ButtonState.DISABLED);
   Rx<ButtonState> otpSubmitButtonState = Rx(ButtonState.DISABLED);
+
+  bool get hasVerificationId => _verificationId.value.isNotEmpty;
+
+  bool get canSubmitOtp =>
+      hasVerificationId &&
+      otpCode.value.length == 6 &&
+      otpSubmitButtonState.value != ButtonState.LOADING;
 
   @override
   onInit() async {
@@ -49,21 +56,48 @@ class OtpVerificationController extends GetxController {
   }
 
   Future<void> _verifyPhoneNumber() async {
+    _verificationId.value = '';
+    otpSubmitButtonState.value = ButtonState.DISABLED;
+    final String normalizedPhone =
+        '+91${(phoneNumber ?? '').replaceAll(RegExp(r'\s+'), '')}';
     await FirebaseAuth.instance.verifyPhoneNumber(
-      phoneNumber: '+91 ${phoneNumber}',
+      phoneNumber: normalizedPhone,
       verificationCompleted: (PhoneAuthCredential credential) {},
       verificationFailed: (FirebaseAuthException e) {
-        debugPrint("FirebaseAuth: ${e}");
+        debugPrint('FirebaseAuth: $e');
+        _verificationId.value = '';
+        otpSubmitButtonState.value = ButtonState.DISABLED;
+        final BuildContext? context = Get.context;
+        if (context != null) {
+          Utility.showSnackBar(
+            context,
+            e.message?.isNotEmpty == true
+                ? e.message!
+                : 'Could not send OTP. Check App Check / network and try Resend.',
+          );
+        }
       },
       codeSent: (String verificationId, int? resendToken) {
         debugPrint('FirebaseAuth: Code sent..$resendToken');
         _verificationId.value = verificationId;
+        _refreshSubmitButtonState();
       },
       codeAutoRetrievalTimeout: (String verificationId) {
         debugPrint('FirebaseAuth: VerificationId...$verificationId');
-        _verificationId.value = verificationId;
+        if (verificationId.isNotEmpty) {
+          _verificationId.value = verificationId;
+          _refreshSubmitButtonState();
+        }
       },
     );
+  }
+
+  void _refreshSubmitButtonState() {
+    if (otpSubmitButtonState.value == ButtonState.LOADING) {
+      return;
+    }
+    otpSubmitButtonState.value =
+        canSubmitOtp ? ButtonState.ENABLED : ButtonState.DISABLED;
   }
 
   void _startOTPTimer() {
@@ -81,20 +115,50 @@ class OtpVerificationController extends GetxController {
   }
 
   void verifyOtp(String code) async {
-    if (code.isEmpty || code.length != 6) return;
     otpCode.value = code;
+    _refreshSubmitButtonState();
+    if (code.isEmpty || code.length != 6) {
+      return;
+    }
+    if (otpSubmitButtonState.value == ButtonState.LOADING) {
+      return;
+    }
+    if (!hasVerificationId) {
+      return;
+    }
     otpSubmitButtonState.value = ButtonState.LOADING;
     try {
-      PhoneAuthCredential credential = PhoneAuthProvider.credential(
-          verificationId: _verificationId.value, smsCode: otpCode.value);
+      final PhoneAuthCredential credential = PhoneAuthProvider.credential(
+        verificationId: _verificationId.value,
+        smsCode: otpCode.value,
+      );
       await FirebaseAuth.instance.signInWithCredential(credential);
       otpVerificationState.value = OtpVerificationState.IN_PROGRESS;
       _onLoggedInSuccess();
     } on FirebaseException catch (e) {
       debugPrint(e.message);
       otpVerificationState.value = OtpVerificationState.FAILED;
-      Utility.showSnackBar(
-          Get.context!, "Something went wrong, please try later.");
+      otpSubmitButtonState.value = ButtonState.ENABLED;
+      final BuildContext? context = Get.context;
+      if (context != null) {
+        Utility.showSnackBar(
+          context,
+          e.message?.isNotEmpty == true
+              ? e.message!
+              : 'Something went wrong, please try later.',
+        );
+      }
+    } catch (e) {
+      debugPrint('$e');
+      otpVerificationState.value = OtpVerificationState.FAILED;
+      otpSubmitButtonState.value = ButtonState.ENABLED;
+      final BuildContext? context = Get.context;
+      if (context != null) {
+        Utility.showSnackBar(
+          context,
+          'Could not verify OTP. Wait for SMS session, then try again.',
+        );
+      }
     }
   }
 

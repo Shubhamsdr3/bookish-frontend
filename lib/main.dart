@@ -11,6 +11,7 @@ import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
@@ -22,7 +23,10 @@ import 'firebase_options.dart';
 import 'notification/notification_service.dart';
 
 Future main() async {
-  WidgetsFlutterBinding.ensureInitialized();
+  final WidgetsBinding widgetsBinding =
+      WidgetsFlutterBinding.ensureInitialized();
+  // Keep native splash visible until Flutter SplashScreen is ready.
+  FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
@@ -33,8 +37,17 @@ Future main() async {
     }
   });
   await FirebaseAppCheck.instance.activate(
-      androidProvider:
-          kReleaseMode ? AndroidProvider.playIntegrity : AndroidProvider.debug);
+    androidProvider:
+        kReleaseMode ? AndroidProvider.playIntegrity : AndroidProvider.debug,
+  );
+  if (kDebugMode) {
+    debugPrint(
+      'App Check: using debug provider. If phone auth fails with '
+      '"App attestation failed" (403), run ./scripts/setup_app_check_debug.sh '
+      'and register .appcheck_debug_token in Firebase Console '
+      '(project bookish-debug-58f4c, package com.newaura.bookish.dev).',
+    );
+  }
   await PushNotificationService().setupInteractedMessage();
   Constants.setEnvironment(Environment.PROD);
   // if (AppEnvironment().isDebugMode) {
@@ -90,8 +103,7 @@ class _MyAppState extends State<MyApp> {
         child: GetMaterialApp(
           getPages: appRoutes,
           title: 'Bookish',
-          navigatorKey:
-              ApiService().isInitialized ? ApiService().alice.getNavigatorKey() : null,
+          navigatorKey: ApiService().aliceNavigatorKey,
           home: SplashScreen(),
           theme: ThemeData(
               useMaterial3: true,

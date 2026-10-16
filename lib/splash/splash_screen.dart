@@ -1,72 +1,65 @@
-import 'dart:async';
-
 import 'package:bookish/util/utility.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:get/get.dart';
 
 import '../native/native_android_plugin.dart';
-import '../util/dimensions.dart';
 
+/// Flutter splash must match native splash (white + centered logo).
+/// Native assets are generated from [flutter_native_splash.yaml].
 class SplashScreen extends StatefulWidget {
-  static String routeName = "/splash-screen";
+  static String routeName = '/splash-screen';
 
   const SplashScreen({
     super.key,
   });
 
   @override
-  _SplashScreenState createState() => _SplashScreenState();
+  State<SplashScreen> createState() => _SplashScreenState();
 }
 
 class _SplashScreenState extends State<SplashScreen> {
   @override
   void initState() {
     super.initState();
-    Future.delayed(const Duration(seconds: 3), _navigateToHome);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      // Hand off from native splash to this identical Flutter frame.
+      FlutterNativeSplash.remove();
+      _navigateToHome();
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     return PopScope(
       canPop: false,
-      onPopInvoked: (didPop) {
-        Utility.showToast("On pop invoked");
+      onPopInvokedWithResult: (bool didPop, Object? result) {
+        if (!didPop) {
+          Utility.showToast('On pop invoked');
+        }
       },
-      child: Scaffold(
+      child: const Scaffold(
         backgroundColor: Colors.white,
-        body: Stack(
-          fit: StackFit.expand,
-          children: [
-            Positioned.fill(
-                child: Container(
-              width: Get.width * 0.2,
-              height: Get.height * 0.2,
-              color: Colors.white,
-            )),
-            const SizedBox(
-              height: Dimensions.dimen120,
+        body: Center(
+          child: FractionallySizedBox(
+            widthFactor: 0.55,
+            child: Image(
+              image: AssetImage('assets/image/logo.png'),
+              fit: BoxFit.contain,
             ),
-            Center(
-              child: Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: Dimensions.dimen40),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(Dimensions.dimen8),
-                  child: Image.asset(
-                    'assets/image/logo.png',
-                  ),
-                ),
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );
   }
 
-  void _navigateToHome() async {
+  Future<void> _navigateToHome() async {
+    if (!mounted) {
+      return;
+    }
     Get.offNamed(NativeAndroidPlugin.routeName);
     // final userLogged = await UserStore.isUserLoggedIn();
+    // if (!mounted) return;
     // if (userLogged) {
     //   Get.offNamed(HomeScreen.routeName);
     // } else {
